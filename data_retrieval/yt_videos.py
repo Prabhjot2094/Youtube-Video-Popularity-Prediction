@@ -34,23 +34,28 @@ def main():
     youtube = googleapiclient.discovery.build(
         api_service_name, api_version, credentials=credentials)
 
-    '''
-    request = youtube.channels().list(
-        part="snippet,contentDetails,statistics",
-        forUsername="justforlaughscomedy"
-    )
-    response = request.execute()
-    '''
-
-    #return response
-
 #Get playlist id
-def get_channel_data(channel_id):
+def get_channel_data(channel_identifier):
+    #First request assuming channel_identifier is channel name
     request = youtube.channels().list(
         part="snippet,contentDetails,statistics",
         forUsername="justforlaughscomedy"
     )
     response = request.execute()
+    
+    if response['pageInfo']['totalResults']:
+        return response
+    
+    #Second(final) request assuming channel_identifier is channel ID
+    request = youtube.channels().list(
+        part="snippet,contentDetails,statistics",
+        id=channel_identifier
+    )
+
+    response = request.execute()
+    
+    #If channel_identifier neither ID nor name, raise an Exception
+    assert response['pageInfo']['totalResults'], Exception('Empty result')
     
     return response
 
@@ -68,6 +73,16 @@ def get_all_playlists(channel_id):
 
 #Get playlist data
 def get_playlist_data(playlist_id):
+    '''
+    PARAMS
+    playlist_id
+
+    RETURN
+    {
+    id: video_id
+    }
+
+    '''
     request = youtube.playlistItems().list(
         part="snippet,contentDetails",
         maxResults=25,
@@ -75,23 +90,56 @@ def get_playlist_data(playlist_id):
     )
     response = request.execute()
 
-    video_ids = [{'id' : video['contentDetails']['videoId']} for video in response['items']]
+    video_ids = [{'video_id' : video['contentDetails']['videoId']} for video in response['items']]
     return video_ids
 
 #Get video data
 def get_video_data(video_id):
     request = youtube.videos().list(
         part="snippet,contentDetails,statistics",
-        id="1W8gVzRZ72A"
+        id=video_id
     )
     response = request.execute()
     return response['items'][0]['statistics']
 
+def get_data():
+    '''
+    channel_identifier  : ID or name
+    playlist_name       : Name or blank
+    '''
+    
+    channel_identifier = 'ChickComedy'
+    playlist_name = ''
+    #Get channel details for channel id and uploads playlist ID.
+    try:
+        channel_data = get_channel_data(channel_identifier)
+    except:
+        print(f"Unable to process {channel_identifier}")
+        return False
+    
+    channel_id = channel_data['items'][0]['id']
+    uploads_playlist_id = channel_data['items'][0]['contentDetails']['relatedPlaylists']['uploads']
+    
+    #Using playlist_id, extract all video IDs
+    playlist_id = uploads_playlist_id if not playlist_name else playlist_name
+    if playlist_id != uploads_playlist_id:
+        all_playlists = get_all_playlists(channel_id)
+        playlist_id = all_playlists[playlist_name]
+
+    #Video_ids for all videos in the playlist
+    playlist_data = get_playlist_data(playlist_id)
+
+    print("video Data")
+    for video in playlist_data:
+        video_data = get_video_data(video['video_id'])
+        pp.pprint(video_data)
+
 if __name__ == "__main__":
     print("Test")
-    #response = 
     main()
+    process_csv()
 
+    '''
     channel_data = get_channel_data('sdwd')
     channel_id = channel_data['items'][0]['id']
 
@@ -107,8 +155,9 @@ if __name__ == "__main__":
     print("Playlist Videos")
     pp.pprint(playlist_data)
 
-    video_data = get_video_data(playlist_data[0]['id'])
+    video_data = get_video_data(playlist_data[0]['video_id'])
     
     print("video Data")
     pp.pprint(video_data)
     #pp.pprint(response)
+    '''
