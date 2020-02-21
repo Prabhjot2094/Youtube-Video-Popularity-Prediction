@@ -43,21 +43,25 @@ def get_channel_data(channel_identifier):
     )
     response = request.execute()
     
-    if response['pageInfo']['totalResults']:
-        return response
-    
-    #Second(final) request assuming channel_identifier is channel ID
-    request = youtube.channels().list(
-        part="snippet,contentDetails,statistics",
-        id=channel_identifier
-    )
-
-    response = request.execute()
+    if not response['pageInfo']['totalResults']:
+        #Second(final) request assuming channel_identifier is channel ID
+        request = youtube.channels().list(
+            part="snippet,contentDetails,statistics",
+            id=channel_identifier
+        )
+        response = request.execute()
     
     #If channel_identifier neither ID nor name, raise an Exception
     assert response['pageInfo']['totalResults'], Exception('Empty result')
     
-    return response
+    retval = dict()
+    retval['channel_id'] = response['items'][0]['id']
+    retval['uploads_playlist_id'] = response['items'][0]['contentDetails']['relatedPlaylists']['uploads'] 
+    retval['channel_stats'] = response['items'][0]['statistics']
+    retval['title'] = response['items'][0]['snippet']['title']
+    retval['published_at'] = response['items'][0]['snippet']['publishedAt']
+    
+    return retval
 
 #For a given channel get all playlist_name and corresponding ids
 def get_all_playlists(channel_id):
@@ -86,7 +90,7 @@ def get_playlist_data(playlist_id):
     request = youtube.playlistItems().list(
         part="snippet,contentDetails",
         maxResults=25,
-        playlistId="UUddem5RlB3bQe99wyY49g0g"
+        playlistId=playlist_id
     )
     response = request.execute()
 
@@ -100,14 +104,28 @@ def get_video_data(video_id):
         id=video_id
     )
     response = request.execute()
-    return response['items'][0]['statistics']
+    
+    retval = response['items'][0]['statistics']
+    retval['video_id'] = video_id
+    
+    return retval
 
 def get_data():
     '''
     channel_identifier  : ID or name
     playlist_name       : Name or blank
+
+    RETURN
+    aggregate_channel_data
+    {
+        channel_id:
+        playlist_id:
+    }
     '''
     
+    #To store all data for this channel. To be returned at the end.
+    aggregate_channel_data = dict()
+
     channel_identifier = 'ChickComedy'
     playlist_name = ''
     #Get channel details for channel id and uploads playlist ID.
@@ -117,8 +135,10 @@ def get_data():
         print(f"Unable to process {channel_identifier}")
         return False
     
-    channel_id = channel_data['items'][0]['id']
-    uploads_playlist_id = channel_data['items'][0]['contentDetails']['relatedPlaylists']['uploads']
+    channel_id = channel_data['channel_id']
+    aggregate_channel_data.update(channel_data)
+    
+    uploads_playlist_id = channel_data['uploads_playlist_id']
     
     #Using playlist_id, extract all video IDs
     playlist_id = uploads_playlist_id if not playlist_name else playlist_name
@@ -127,37 +147,21 @@ def get_data():
         playlist_id = all_playlists[playlist_name]
 
     #Video_ids for all videos in the playlist
+    aggregate_channel_data['playlist_id'] = playlist_id
     playlist_data = get_playlist_data(playlist_id)
 
-    print("video Data")
+    #print("video Data")
+    aggregate_channel_data['videos'] = list()
     for video in playlist_data:
+        #print(video)
         video_data = get_video_data(video['video_id'])
-        pp.pprint(video_data)
+        aggregate_channel_data['videos'].append(video_data)
+        #pp.pprint(video_data)
+    
+    pp.pprint(aggregate_channel_data)
+    return aggregate_channel_data
 
 if __name__ == "__main__":
     print("Test")
     main()
-    process_csv()
-
-    '''
-    channel_data = get_channel_data('sdwd')
-    channel_id = channel_data['items'][0]['id']
-
-    playlist_id = channel_data['items'][0]['contentDetails']['relatedPlaylists']['uploads']
-    print(f"Playlist id={playlist_id}")
-    
-    all_playlists = get_all_playlists(channel_id)
-    print(f"All playlists")
-    pp.pprint(all_playlists)
-
-    playlist_data = get_playlist_data(playlist_id)
-    
-    print("Playlist Videos")
-    pp.pprint(playlist_data)
-
-    video_data = get_video_data(playlist_data[0]['video_id'])
-    
-    print("video Data")
-    pp.pprint(video_data)
-    #pp.pprint(response)
-    '''
+    get_data()
