@@ -83,26 +83,18 @@ def execute_yt_call(api, params):
 #Get playlist id
 def get_channel_data(channel_identifier):
     #First request assuming channel_identifier is channel name
-    #request = youtube.channels().list(
     response =   execute_yt_call("channels",
                                 {
                                     'part':"snippet,contentDetails,statistics",
                                     'forUsername':channel_identifier
                                 })
-    #)
-    #response = request.execute()
-    
-    #print("Response = ", response)
     if not response['pageInfo']['totalResults']:
         #Second(final) request assuming channel_identifier is channel ID
-        #request = youtube.channels().list(
         response = execute_yt_call("channels", 
                                 {
                                     'part':"snippet,contentDetails,statistics",
                                     'id':channel_identifier
                                 })
-        #)
-        #response = request.execute()
     
     #If channel_identifier neither ID nor name, raise an Exception
     assert response['pageInfo']['totalResults'], Exception('Empty result')
@@ -118,14 +110,6 @@ def get_channel_data(channel_identifier):
 
 #For a given channel get all playlist_name and corresponding ids
 def get_all_playlists(channel_id):
-    '''
-    request = youtube.playlists().list(
-        part="snippet",
-        maxResults=50,
-        channelId=channel_id
-    )
-    response = request.execute()
-    '''
     response = execute_yt_call("playlists", 
             {
                 'part':"snippet",
@@ -148,14 +132,6 @@ def get_playlist_data(playlist_id):
     }
 
     '''
-    '''
-    request = youtube.playlistItems().list(
-        part="contentDetails",
-        maxResults=50,
-        playlistId=playlist_id
-    )
-    response = request.execute()
-    '''
     response = execute_yt_call("playlist_items", 
             {
                 'part':"contentDetails",
@@ -169,15 +145,6 @@ def get_playlist_data(playlist_id):
     total = 50
     while 'nextPageToken' in response:
         pageToken = response['nextPageToken']
-        '''
-        request = youtube.playlistItems().list(
-            part="contentDetails",
-            maxResults=50,
-            pageToken=pageToken,
-            playlistId=playlist_id
-        )
-        response = request.execute()
-        '''
         response = execute_yt_call("playlist_items", 
                 {
                     'part':"contentDetails",
@@ -188,18 +155,10 @@ def get_playlist_data(playlist_id):
         video_ids.extend([{'video_id' : video['contentDetails']['videoId']} for video in response['items']])
         total+=50
     
-    #main()
     return video_ids
 
 #Get video data
 def get_video_data(video_id):
-    '''
-    request = youtube.videos().list(
-        part="snippet,statistics",
-        id=video_id
-    )
-    response = request.execute()
-    '''
     response = execute_yt_call('video', 
             {
                 'part':"snippet,statistics",
@@ -231,9 +190,6 @@ def get_data(channel_identifier, playlist_name):
     #To store all data for this channel. To be returned at the end.
     aggregate_channel_data = dict()
 
-    #channel_identifier = 'ChickComedy'
-    #playlist_name = ''
-    
     #Get channel details for channel id and uploads playlist ID.
     try:
         channel_data = get_channel_data(channel_identifier)
@@ -258,13 +214,10 @@ def get_data(channel_identifier, playlist_name):
     aggregate_channel_data['playlist_id'] = playlist_id
     playlist_data = get_playlist_data(playlist_id)
 
-    #print("video Data")
     aggregate_channel_data['videos'] = list()
     for video in playlist_data:
-        #print(video)
         video_data = get_video_data(video['video_id'])
         aggregate_channel_data['videos'].append(video_data)
-        #pp.pprint(video_data)
     
     pp.pprint(aggregate_channel_data)
     return aggregate_channel_data
