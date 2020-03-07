@@ -9,3 +9,5 @@
 *.sw*
 
 *.pyc
+
+*.ipynb_checkpoints
