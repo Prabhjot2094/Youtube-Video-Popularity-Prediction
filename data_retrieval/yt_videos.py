@@ -8,6 +8,7 @@ import os
 import json
 import pprint
 import csv
+import random
 
 pp = pprint.PrettyPrinter(indent=4)
 
@@ -20,7 +21,8 @@ youtube = None
 
 def get_credentials():
     names = os.listdir('data_retrieval/client_secret/')
-    for name in names[::-1]:
+    random.shuffle(names)
+    for name in names:
         if 'json' not in name:
             continue
         yield name
@@ -117,7 +119,26 @@ def get_all_playlists(channel_id):
                 'channelId':channel_id
                 })
 
-    playlists = {playlist['snippet']['title'].lower().replace(' ', ''): playlist['id'] for playlist in response['items']}
+    playlist_names = {playlist['snippet']['title'].lower().replace(' ', ''): playlist['id'] for playlist in response['items']}
+    playlist_ids = {playlist['id'].lower().replace(' ', ''): playlist['id'] for playlist in response['items']}
+    playlists = {**playlist_ids, **playlist_names}
+
+    while 'nextPageToken' in response:
+        pageToken = response['nextPageToken']
+        response = execute_yt_call("playlists", 
+                {
+                    'part':"snippet",
+                    'maxResults':50,
+                    'pageToken':pageToken,
+                    'channelId':channel_id
+                    })
+
+        playlist_names = {playlist['snippet']['title'].lower().replace(' ', ''): playlist['id'] for playlist in response['items']}
+        playlist_ids = {playlist['id'].lower().replace(' ', ''): playlist['id'] for playlist in response['items']}
+        playlists.update(playlist_names)
+        playlists.update(playlist_ids)
+
+    pp.pprint(playlists)
     return playlists
 
 #Get playlist data
@@ -205,7 +226,7 @@ def get_data(channel_identifier, playlist_name):
     #Using playlist_id, extract all video IDs
     playlist_id = uploads_playlist_id if not playlist_name else playlist_name
     if playlist_id != uploads_playlist_id:
-        #Standardize playlist name
+        #Standardize playlist name/id
         playlist_name = playlist_name.lower().replace(' ','')
         all_playlists = get_all_playlists(channel_id)
         playlist_id = all_playlists[playlist_name]
@@ -216,15 +237,33 @@ def get_data(channel_identifier, playlist_name):
 
     aggregate_channel_data['videos'] = list()
     for video in playlist_data:
-        video_data = get_video_data(video['video_id'])
+        try:
+            video_data = get_video_data(video['video_id'])
+        except:
+            continue
         aggregate_channel_data['videos'].append(video_data)
     
     pp.pprint(aggregate_channel_data)
     return aggregate_channel_data
 
+def get_channel_from_playlist(playlist_id):
+    response = execute_yt_call("playlists", 
+            {
+                'part':"snippet",
+                'maxResults':50,
+                'id':playlist_id
+                })
+
+    try:
+        channel_id = response['items'][0]['snippet']['channelId']
+        return channel_id
+    except Exception as e:
+        print(f"Exception in getting channel from playlist {e}")
+        return False
+    
 def process_channel_list():
     #Read from csv
-    f = open('/users/prabhjotsingh/Downloads/comedy_channels.csv', 'r')
+    f = open('/users/prabhjotsingh/Downloads/comedy_sheet.csv', 'r')
     csv_reader = csv.reader(f)
 
     headers = next(csv_reader)
@@ -233,14 +272,35 @@ def process_channel_list():
     f.close()
 
     #Aggregate data for all channels
-    final_data = list() 
-    for i, row in enumerate(file_data):
+    final_data = list()
+    for i, row in enumerate(file_data[48:], 48):
         print(f"Current Item : {i}")
         try:
-            channel_data = get_data(row['ID'], row['Playlist ID'])
-            if not channel_data:
-                continue
-            final_data.append(channel_data)
+            #If playlist name/id in channel data, get the actual channel id
+            print("Getting channel from playlist")
+            channel_id = get_channel_from_playlist(row['ID'])
+            print(f"Got channel from playlist {channel_id}")
+
+            if channel_id:
+                row['Playlist ID'] = row['ID']
+                row['ID'] = channel_id
+
+            #Handle the case where all playlists have to be downloaded
+            if row['Playlist ID'] == "all playlists":
+                playlists = get_all_playlists(row['ID'])
+            else:#Use current playlist
+                playlists = {row['Playlist ID']: row['Playlist ID']}
+            
+            playlist_ids_seen = set()
+            for playlist_name ,playlist_id in playlists.items():
+                if playlist_id in playlist_ids_seen:
+                    continue
+                playlist_ids_seen.add(playlist_id)
+                #channel_data = get_data(row['ID'], row['Playlist ID'])
+                channel_data = get_data(row['ID'], playlist_id)
+                if not channel_data:
+                    continue
+                final_data.append(channel_data)
         except Exception as e:
             print(str(e))
             break
@@ -248,7 +308,7 @@ def process_channel_list():
     #Write to csv
     headers = ['title', 'published_at', 'subscriberCount', 'videoCount', 'viewCount', 'video_published_date', 'video_commentCount', 'video_viewCount', 'video_likeCount', 'video_dislikeCount', 'video_favoriteCount', 'video_id']
     channel_stats_to_store = ['subscriberCount', 'videoCount', 'viewCount']
-    f = open('raw_data.csv', 'w')
+    f = open('raw_data_additional_3.csv', 'w')
     csv_writer = csv.writer(f)
 
     csv_writer.writerow(headers)
@@ -260,13 +320,16 @@ def process_channel_list():
             row[name] = channel['channel_stats'][name]
         
         for video in channel['videos']:
-            for key, val in video.items():
-                row['video_'+key] = val
-            csv_writer.writerow([row[col] for col in headers])
+            try:
+                for key, val in video.items():
+                    row['video_'+key] = val
+                csv_writer.writerow([row[col] for col in headers])
+            except:
+                pp.pprint(video)
+                print("Exception while trying to write video")
 
     f.close()
 
-    
 if __name__ == "__main__":
     print("Test")
     main()
