@@ -1,3 +1,6 @@
+*downloads/
+*temporary_downloads
+
 *client_secret*
 
 .python-version

@@ -1,3 +1,8 @@
 google_auth_oauthlib
 google-api-python-client
 pprint
+pytube
+pandas
+numpy
+seaborn
+sklearn
