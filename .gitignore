@@ -1,6 +1,8 @@
 *downloads/
 *temporary_downloads
 
+*video_processing/config.py
+
 *client_secret*
 
 .python-version

@@ -1,0 +1,13 @@
+Input:/Users/prabhjotsingh/USC/Sem 4/Project/popularity_prediction/temporary_downloads/video_w-FO8lGpyBE
+Input full path:/Users/prabhjotsingh/USC/Sem 4/Project/popularity_prediction/temporary_downloads/video_w-FO8lGpyBE
+Camera parameters:1312.5,1312.5,960,540
+Output HOG:video_w-FO8lGpyBE.hog
+Output video:video_w-FO8lGpyBE.avi
+Output aligned directory:video_w-FO8lGpyBE_aligned
+Output csv:video_w-FO8lGpyBE.csv
+Gaze: 1
+AUs: 1
+Landmarks 2D: 1
+Landmarks 3D: 1
+Pose: 1
+Shape parameters: 1

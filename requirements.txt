@@ -1,8 +1,9 @@
 google_auth_oauthlib
 google-api-python-client
 pprint
-pytube
+pytube3
 pandas
 numpy
 seaborn
 sklearn
+csv
