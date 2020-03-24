@@ -111,9 +111,9 @@ class Video():
             print(f"Video feature extraction for {video_id} returned with status code {self.features_extracted_status}")
     
             #Delete the video files
-            #os.remove(self.video_location)
+            os.remove(self.video_location)
             os.remove(self.audio_location)
-            #shutil.rmtree(self.frames_location)
+            shutil.rmtree(self.frames_location)
 
 
     
