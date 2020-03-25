@@ -122,21 +122,26 @@ class Video():
         audio_codec="opus"
         video_stream = audio_stream = None
         
-        try:
-            yt = YouTube(url.format(video_id))
-            print(url.format(video_id))
-            
-            #Filter available streams to get the compatible ones. Adaptive : Audio, Video downloaded separately and merged after download; progressive : Audio, Video downloaded in same file
-            adaptive_video_streams = yt.streams.filter(adaptive=True, type="video")
-            adaptive_audio_streams = yt.streams.filter(type="audio", audio_codec=audio_codec)
-            
-            #Download the Audio and Video into a temporary file. Assuming there is only a single file at a given time for OpenFace processing
-            #TODO Ensure the asc function works as expected for all videos. The sorting assumption is made based on the output for 4-5 test videos.
-            video_location = adaptive_video_streams.asc()[0].download(output_path="temporary_downloads/raw_video", filename=f"video_{video_id}") #asc puts the highest quality video at the top 
-            audio_location = adaptive_audio_streams.asc()[-1].download(output_path="temporary_downloads/raw_audio", filename=f"audio_{video_id}")#asc puts the highest bitrate at the bottom
-        except Exception as e:
-            print(f"unable to process video {video_id}, error {e}")
-            return 0, 0
+        while 1:
+            try:
+                yt = YouTube(url.format(video_id))
+                print(url.format(video_id))
+                
+                #Filter available streams to get the compatible ones. Adaptive : Audio, Video downloaded separately and merged after download; progressive : Audio, Video downloaded in same file
+                adaptive_video_streams = yt.streams.filter(adaptive=True, type="video")
+                adaptive_audio_streams = yt.streams.filter(type="audio", audio_codec=audio_codec)
+                
+                #Download the Audio and Video into a temporary file. Assuming there is only a single file at a given time for OpenFace processing
+                #TODO Ensure the asc function works as expected for all videos. The sorting assumption is made based on the output for 4-5 test videos.
+                video_location = adaptive_video_streams.asc()[0].download(output_path="temporary_downloads/raw_video", filename=f"video_{video_id}") #asc puts the highest quality video at the top 
+                audio_location = adaptive_audio_streams.asc()[-1].download(output_path="temporary_downloads/raw_audio", filename=f"audio_{video_id}")#asc puts the highest bitrate at the bottom
+            except Exception as e:
+                if '429' in str(e):
+                    time.sleep(10)
+                    continue
+                print(f"unable to process video {video_id}, error {e}")
+                return 0, 0
+            break
         
         return video_location, audio_location
         #max_abr = 0
