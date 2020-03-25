@@ -1,3 +1,4 @@
+import json
 import os
 import time
 import subprocess
@@ -6,11 +7,10 @@ import config
 import csv
 import cv2
 import shutil
-
+from multiprocessing import Pool, Manager, cpu_count
 
 REQUIRED_FPS = 3
 SKIP_FRAMES = 60//REQUIRED_FPS+1
-
 
 def get_file_name(path):
     #Get file name and remove extension
@@ -145,45 +145,78 @@ class Video():
         #        audio_stream = stream
         
 
+def print_error(e):
+    print(e)
+
+def process_videos_helper(video_ids):
+    video_proc_obj = ProcessVideos(video_ids)
+    #Store id for failed videos 
+    for status, video_id in zip(video_proc_obj.video_status, video_ids):
+        if status!=0:
+            errors_list.append([video_id, status, 'video'])
+        else:
+            processed_list.append(video_id)
+            #videos_failed_csv.writerow([video_id, status])
+    
+    ###############################
+    #Audio processing
+    
+    #Store id for failed audio files
+    for status, video_id in zip(video_proc_obj.audio_status, video_ids):
+        if status!=0:
+            errors_list.append([video_id, status, 'audio'])
+        else:
+            processed_list.append(video_id)
+            #audios_failed_csv.writerow([video_id, status])
+
+
 def main():
     #Read raw data
+    f = open('processed_video_ids.json', 'r')
+    processed_list.extend(json.load(f))
+    f.close()
+
     video_ids = list()
     
     f = open('Data/raw_data.csv')
     c = csv.reader(f)
     #Get rid of the header row
     next(c)
-    for row in c:
-        video_ids.append(row[12])
+    for i, row in enumerate(c):
+        if i%100==0: #create sets of 100 ids which'll be distributed to the spawned processes
+            video_ids.append(list())
+        if row[12] in processed_list:
+            continue
+        video_ids[-1].append(row[12])
     f.close()
     
-    
     #Fetch details of all videos
-    video_ids = video_ids[:1]+['ewfherher']#, 'wO0a2C6PqtY']
+    #video_ids = video_ids[:1]+['ewfherher']#, 'wO0a2C6PqtY']
     start = time.time()
     
-    video_proc_obj = ProcessVideos(video_ids)
-    
-    #Store id for failed videos 
-    videos_failed = open('Errors/processing_errors_video.csv', 'w')
-    videos_failed_csv = csv.writer(videos_failed)
-    for status, video_id in zip(video_proc_obj.video_status, video_ids):
-        if status!=0:
-            videos_failed_csv.writerow([video_id, status])
-    videos_failed.close()
+    #video_ids = [video_ids[3][:2]]
+    #video_ids = [video_ids[0][:1], video_ids[0][1:]+[' ##################']]
 
-    ###############################
-    #Audio processing
+    NUM_WORKERS = cpu_count()*2
     
-    #Store id for failed audio files
-    audios_failed = open('Errors/processing_errors_audio.csv', 'w')
-    audios_failed_csv = csv.writer(audios_failed)
-    for status, video_id in zip(video_proc_obj.audio_status, video_ids):
-        if status!=0:
-            audios_failed_csv.writerow([video_id, status])
-    audios_failed.close()
-
+    p = Pool(processes=NUM_WORKERS)
+    p.map_async(process_videos_helper, video_ids, error_callback=print_error)
+    p.close()
+    p.join()
+    
     print("Processing time = ", time.time()-start)
+    print("Saving processed video ids and Terminating program !!!")
+    f = open('processed_video_ids.json', 'w')
+    json.dump(list(processed_list), f)
+    f.close()
+    
+    errors = open('Errors/processing_errors.csv', 'a')
+    errors_csv = csv.writer(errors)
+    for row in errors_list:
+        errors_csv.writerow(row)
+    errors.close()
 
-
+#Objects shared between processes
+errors_list = Manager().list()
+processed_list = Manager().list()
 main()

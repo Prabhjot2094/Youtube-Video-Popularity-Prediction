@@ -2,6 +2,8 @@
 *temporary_downloads
 
 *processed_video/*
+*processed_video_init/*
+
 *video_processing/config.py
 
 *client_secret*
