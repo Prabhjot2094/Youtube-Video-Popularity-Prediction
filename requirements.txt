@@ -6,4 +6,3 @@ pandas
 numpy
 seaborn
 sklearn
-csv
