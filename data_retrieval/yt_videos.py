@@ -182,18 +182,18 @@ def get_playlist_data(playlist_id):
 def get_video_data(video_id):
     response = execute_yt_call('video', 
             {
-                'part':"snippet,statistics",
+                'part':"snippet,contentDetails,recordingDetails",
                 'id':video_id
                 })
 
-    retval = response['items'][0]['statistics']
+    #retval = response['items'][0]['statistics']
     
-    videoReleaseDate = response['items'][0]['snippet']['publishedAt']
+    #videoReleaseDate = response['items'][0]['snippet']['publishedAt']
 
-    retval['id'] = video_id
-    retval['published_date'] = videoReleaseDate
+    #retval['id'] = video_id
+    #retval['published_date'] = videoReleaseDate
 
-    return retval
+    return response['items']#retval
 
 def get_data(channel_identifier, playlist_name):
     '''
@@ -330,8 +330,33 @@ def process_channel_list():
 
     f.close()
 
+def get_video_features():
+    f = open("Data/raw_data.csv")
+    c = csv.reader(f)
+    header = next(c)
+    id_index = header.index('video_id') 
+    ids = list()
+    for row in c:
+        ids.append(row[id_index])
+    print(len(ids))
+    f.close()
+
+    ids = ids[6000:]
+    f = open('video_data4.json', 'w')
+    data = dict()
+    try:
+        for video_id in ids:
+            data[video_id] = get_video_data(video_id)
+            #break
+    except:
+        pass
+    json.dump(data, f)
+    f.close()
+
+
 if __name__ == "__main__":
     print("Test")
     main()
-    process_channel_list()
+    get_video_features()
+    #process_channel_list()
     #get_data()
