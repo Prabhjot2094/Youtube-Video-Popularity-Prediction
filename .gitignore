@@ -19,3 +19,10 @@
 *.pyc
 
 *.ipynb_checkpoints
+
+*HW2.ipynb
+openface_features.csv
+openface_features_final.csv
+scaled_data/
+visual_features/
+visual_labels/
