@@ -18,9 +18,10 @@ import azure.cognitiveservices.speech as speechsdk
 
 # Creates an instance of a speech config with specified subscription key and service region.
 # Replace with your own subscription key and region identifier from here: https://aka.ms/speech/sdkregion
-speech_key, service_region = "d215959e99c24caeb2ee4e620016782f", "westus"
-speech_config = speechsdk.SpeechConfig(subscription=speech_key, region=service_region)
-speech_config.request_word_level_timestamps()
+
+#speech_key, service_region = "d215959e99c24caeb2ee4e620016782f", "westus"
+#speech_config = speechsdk.SpeechConfig(subscription=speech_key, region=service_region)
+#speech_config.request_word_level_timestamps()
 
 # Creates an audio configuration that points to an audio file.
 # Replace with your own audio filename.
@@ -207,12 +208,12 @@ class Video():
                 print(url.format(video_id))
                 
                 #Filter available streams to get the compatible ones. Adaptive : Audio, Video downloaded separately and merged after download; progressive : Audio, Video downloaded in same file
-                #adaptive_video_streams = yt.streams.filter(adaptive=True, type="video")
+                adaptive_video_streams = yt.streams.filter(adaptive=True, type="video")
                 adaptive_audio_streams = yt.streams.filter(type="audio", audio_codec=audio_codec)
                 
                 #Download the Audio and Video into a temporary file. Assuming there is only a single file at a given time for OpenFace processing
                 #TODO Ensure the asc function works as expected for all videos. The sorting assumption is made based on the output for 4-5 test videos.
-                #video_location = adaptive_video_streams.asc()[0].download(output_path="temporary_downloads/raw_video", filename=f"video_{video_id}") #asc puts the highest quality video at the top 
+                video_location = adaptive_video_streams.asc()[0].download(output_path="temporary_downloads/raw_video", filename=f"video_{video_id}") #asc puts the highest quality video at the top 
                 audio_location = adaptive_audio_streams.asc()[-1].download(output_path="temporary_downloads/raw_audio", filename=f"audio_{video_id}")#asc puts the highest bitrate at the bottom
             except Exception as e:
                 if '429' in str(e):
@@ -275,7 +276,7 @@ def process_videos_helper():
     while not video_ids.empty():
         video_id = video_ids.get()
         print("Helper", video_ids)
-        video = Video(video_id, process_audio=True)
+        video = Video(video_id, process_video=True)
         
         #Store id for failed videos
         status = video.features_extracted_status
@@ -305,20 +306,20 @@ def main():
     #return
     #global video_ids
     #Read raw data
-    f = open('final_ids.json', 'r')
+    f = open('ids_left.json', 'r')
     processed_list.extend(json.load(f))
     f.close()
 
-    f = open('processed_txt_ids.json', 'r')
-    ids_to_ignore = json.load(f)
-    f.close()
+    #f = open('processed_txt_ids.json', 'r')
+    #ids_to_ignore = json.load(f)
+    #f.close()
 
     i = 0
     for _, _id in enumerate(processed_list):
-        if _id in ids_to_ignore:
-            continue
-        if i==2000:
-            break
+        #if _id in ids_to_ignore:
+        #    continue
+        #if i==2000:
+        #    break
         i+=1
         video_ids.put(_id)
         #print("adding id ", _id)
@@ -369,7 +370,7 @@ def main():
             #Get running procs
             #If running procs<max, spawn, else continue
             video = downloaded_que.get()
-            p = Process(target=extract_features_helper, args=(video, False, True,))
+            p = Process(target=extract_features_helper, args=(video, True, False,))
             p.start()
             openface_processes.append(p)
             print("Vid ID", video.id)
