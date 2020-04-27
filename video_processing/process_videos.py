@@ -306,7 +306,7 @@ def main():
     #return
     #global video_ids
     #Read raw data
-    f = open('ids_left.json', 'r')
+    f = open('ids_missing.json', 'r')
     processed_list.extend(json.load(f))
     f.close()
 
